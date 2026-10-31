@@ -1,0 +1,188 @@
+import { memo } from 'react'
+import type { RowView, SolveView } from '../lib/types'
+import { formatAcceptTime, formatPenalty, formatPenaltyFull } from '../lib/format'
+import { cx } from './ui'
+
+interface BoardProps {
+  rows: RowView[]
+  /** 固定列数（默认 15）：第 1 次、第 2 次…通过 */
+  slotCount: number
+  /** 本场题数，用于"5/13"里的分母 */
+  problemCount: number
+  minutePrecision: boolean
+  onSelectTeam: (id: string) => void
+}
+
+/**
+ * 主榜：名次 / 队伍 / 通过数 / 罚时 / 第 1..15 次通过。
+ * 每次通过只给"第几次、几次提交、什么时刻"，不给题号 —— 题号只活在右栏，解锁后才有。
+ */
+export function BoardTable({ rows, slotCount, problemCount, minutePrecision, onSelectTeam }: BoardProps) {
+  return (
+    <table className="board">
+      <colgroup>
+        <col className="col-rank" />
+        <col className="col-team" />
+        <col className="col-solved" />
+        <col className="col-penalty" />
+        {Array.from({ length: slotCount }, (_, i) => (
+          <col className="col-slot" key={i} />
+        ))}
+      </colgroup>
+      <thead>
+        <tr>
+          <th className="h-rank">#</th>
+          <th className="h-team">队伍</th>
+          <th className="h-solved">通过</th>
+          <th className="h-penalty">罚时</th>
+          {Array.from({ length: slotCount }, (_, i) => (
+            <th className="h-slot" key={i} title={`第 ${i + 1} 次通过（按时间顺序，不含题号）`}>
+              <span className="n">{i + 1}</span>
+              <span className="u">次</span>
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <TeamRow
+            key={row.teamId}
+            row={row}
+            onSelect={onSelectTeam}
+            slotCount={slotCount}
+            problemCount={problemCount}
+            minutePrecision={minutePrecision}
+          />
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+interface TeamRowProps {
+  row: RowView
+  onSelect: (id: string) => void
+  slotCount: number
+  problemCount: number
+  minutePrecision: boolean
+}
+
+const TeamRow = memo(function TeamRow({
+  row,
+  onSelect,
+  slotCount,
+  problemCount,
+  minutePrecision,
+}: TeamRowProps) {
+  const { team } = row
+  const pct = problemCount > 0 ? Math.min(100, (row.solved / problemCount) * 100) : 0
+  const subtitle = [team.organization, team.markers.girl ? '女队' : '', team.markers.starred ? '打星' : '']
+    .filter(Boolean)
+    .join(' · ')
+
+  return (
+    <tr className={cx('row', row.isSelf && 'is-self', row.rank >= 1 && row.rank <= 3 && 'is-top')}>
+      <td className="c-rank">{row.rank > 0 ? row.rank : '–'}</td>
+      <td className="c-team">
+        <button
+          className="team-button"
+          onClick={() => onSelect(row.teamId)}
+          title={`${team.name}${subtitle ? ` · ${subtitle}` : ''}`}
+        >
+          <span className="team-name">{team.name}</span>
+          {team.organization ? <span className="team-org">{team.organization}</span> : null}
+        </button>
+      </td>
+      <td className="c-solved">
+        <span className="solved-num">{row.solved}</span>
+        <span className="solved-total">/{problemCount}</span>
+        <span className="solved-bar" aria-hidden="true">
+          <i style={{ width: `${pct}%` }} />
+        </span>
+      </td>
+      <td
+        className="c-penalty"
+        title={row.penaltySec > 0 ? `罚时 ${formatPenaltyFull(row.penaltySec)}` : '暂无罚时'}
+      >
+        {formatPenalty(row.penaltySec)}
+      </td>
+      {Array.from({ length: slotCount }, (_, i) => {
+        const solve = row.solves[i]
+        if (!solve) return <td className="pcell is-empty" key={i} />
+        return (
+          <SolveCell
+            key={i}
+            solve={solve}
+            ordinal={i + 1}
+            minutePrecision={minutePrecision}
+          />
+        )
+      })}
+    </tr>
+  )
+}, areRowsEqual)
+
+function solvesEqual(a: SolveView[], b: SolveView[]): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i += 1) {
+    const x = a[i]
+    const y = b[i]
+    if (
+      x.attempts !== y.attempts ||
+      x.acceptSec !== y.acceptSec ||
+      x.recent !== y.recent ||
+      x.firstBlood !== y.firstBlood
+    ) {
+      return false
+    }
+  }
+  return true
+}
+
+function areRowsEqual(a: TeamRowProps, b: TeamRowProps): boolean {
+  if (a.row === b.row) return true
+  if (
+    a.slotCount !== b.slotCount ||
+    a.problemCount !== b.problemCount ||
+    a.minutePrecision !== b.minutePrecision ||
+    a.onSelect !== b.onSelect
+  ) {
+    return false
+  }
+  if (
+    a.row.rank !== b.row.rank ||
+    a.row.solved !== b.row.solved ||
+    a.row.penaltySec !== b.row.penaltySec ||
+    a.row.isSelf !== b.row.isSelf ||
+    a.row.team.name !== b.row.team.name ||
+    a.row.team.organization !== b.row.team.organization
+  ) {
+    return false
+  }
+  return solvesEqual(a.row.solves, b.row.solves)
+}
+
+function SolveCell({
+  solve,
+  ordinal,
+  minutePrecision,
+}: {
+  solve: SolveView
+  ordinal: number
+  minutePrecision: boolean
+}) {
+  return (
+    <td
+      className={cx('pcell', solve.recent && 'is-recent')}
+      title={`第 ${ordinal} 次通过 · ${formatAcceptTime(solve.acceptSec, minutePrecision)} · ${
+        solve.attempts
+      } 次提交${solve.firstBlood ? ' · 首杀' : ''}`}
+    >
+      <span className="tile">
+        <span className="tile-main">+{solve.attempts}</span>
+        <span className="tile-time">{formatAcceptTime(solve.acceptSec, minutePrecision)}</span>
+      </span>
+      {solve.firstBlood ? <span className="tile-fb" /> : null}
+    </td>
+  )
+}
