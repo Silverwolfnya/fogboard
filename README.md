@@ -15,13 +15,14 @@ pnpm dev          # http://127.0.0.1:5173/
 打开后点「成都站 / 秦皇岛站」的示例即可看到效果，也可以直接把 xlsx 拖进页面。
 
 ```bash
-pnpm test         # 78 个单测：解析 / 罚时 / 排名 / 解锁 / 快照 / 格式化 / QOJ
+pnpm test         # 85 个单测：解析 / 罚时 / 排名 / 解锁 / 快照 / 格式化 / QOJ / 回放时钟
 pnpm build        # 产出 dist/，可直接静态托管
 pnpm build:single # 产出 dist-single/FogBoard.html —— 单文件版，双击就能用
 pnpm preview      # 预览构建结果
 pnpm typecheck    # tsc --noEmit
-node scripts/verify-ui.mjs      # 用本机 Chrome 跑一遍交互并截图
-node scripts/verify-single.mjs  # 用 file:// 打开单文件版，确认内置榜单能加载
+node scripts/verify-ui.mjs          # 用本机 Chrome 跑一遍交互并截图
+node scripts/verify-single.mjs      # 用 file:// 打开单文件版，确认内置榜单能加载
+node scripts/verify-background.mjs  # 真的把页面冻住，确认回放时钟会追平
 ```
 
 纯前端，文件只在浏览器里解析，不会上传。

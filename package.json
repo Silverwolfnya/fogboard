@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "verify:ui": "node scripts/verify-ui.mjs",
-    "verify:single": "node scripts/verify-single.mjs"
+    "verify:single": "node scripts/verify-single.mjs",
+    "verify:background": "node scripts/verify-background.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.2.6",
