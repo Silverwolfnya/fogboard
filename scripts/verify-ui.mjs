@@ -44,6 +44,37 @@ if (colCount !== 19) throw new Error(`期望 19 列（4 信息列 + 15 个通过
 if (slotCount !== 15) throw new Error(`期望 15 个通过位，实际 ${slotCount}`)
 await shot('02-t0')
 
+// 播放时钟按墙钟推算：后台标签页会冻结 rAF，靠帧累加就会"挂后台不动"
+const readClock = async () => {
+  const text = (await page.locator('.clock').innerText()).trim()
+  const [h, m, s] = text.split(':').map(Number)
+  return h * 3600 + m * 60 + s
+}
+await page.locator('.play-btn').click()
+await page.waitForTimeout(500)
+await page.evaluate(() => {
+  window.__realNow = Date.now
+  window.__offset = 0
+  Date.now = () => window.__realNow() + window.__offset
+  window.__jump = (ms) => {
+    window.__offset += ms
+  }
+})
+const clockBefore = await readClock()
+await page.evaluate(() => window.__jump(10 * 60 * 1000))
+await page.waitForTimeout(500)
+const clockAfter = await readClock()
+await page.evaluate(() => {
+  Date.now = window.__realNow
+})
+console.log(`时钟：墙钟前拨 10 分钟后 ${clockBefore}s → ${clockAfter}s`)
+if (clockAfter - clockBefore < 595) throw new Error(`时钟没按墙钟走：${clockBefore} → ${clockAfter}`)
+await page.locator('.play-btn').click()
+await page.locator('.icon-btn').first().click()
+await page.waitForTimeout(200)
+const clockReset = await readClock()
+if (clockReset > 2) throw new Error(`回到开始失败：${clockReset}s`)
+
 // 20:10 —— M 题解锁
 await seekRatio(1210 / 18000)
 const openAt20 = await page.locator('.pcard.open').count()

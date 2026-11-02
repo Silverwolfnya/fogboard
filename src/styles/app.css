@@ -1293,11 +1293,6 @@ button {
   background: rgba(242, 163, 60, 0.5);
 }
 
-.tl-legend .sw-unlock {
-  background: var(--amber);
-  transform: rotate(45deg);
-}
-
 .tl-track {
   position: relative;
   height: 26px;
@@ -1330,25 +1325,6 @@ button {
   border-right: 1px solid var(--amber);
   border-radius: 3px 0 0 3px;
   pointer-events: none;
-}
-
-.tl-mark {
-  position: absolute;
-  top: -5px;
-  width: 7px;
-  height: 7px;
-  margin-left: -3.5px;
-  transform: rotate(45deg);
-  background: var(--amber);
-  border-radius: 1px;
-  border: 0;
-  opacity: 0.85;
-  transition: transform 0.12s ease, opacity 0.12s ease;
-}
-
-.tl-mark:hover {
-  opacity: 1;
-  transform: rotate(45deg) scale(1.35);
 }
 
 .tl-cursor {

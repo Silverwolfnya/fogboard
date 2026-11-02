@@ -139,20 +139,14 @@ export function Playbar(props: PlaybarProps) {
   )
 }
 
-export interface UnlockMark {
-  sec: number
-  letters: string[]
-}
-
-interface TimelineProps {
+export interface TimelineProps {
   t: number
   durationSec: number
   freezeSec: number | null
-  marks: UnlockMark[]
   onSeek: (v: number) => void
 }
 
-export function Timeline({ t, durationSec, freezeSec, marks, onSeek }: TimelineProps) {
+export function Timeline({ t, durationSec, freezeSec, onSeek }: TimelineProps) {
   const trackRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
   const ratio = durationSec > 0 ? clamp(t / durationSec, 0, 1) : 0
@@ -178,10 +172,6 @@ export function Timeline({ t, durationSec, freezeSec, marks, onSeek }: TimelineP
       <div className="tl-head">
         <span className="tl-title">赛程时间轴</span>
         <div className="tl-legend">
-          <span>
-            <i className="sw-unlock" />
-            题目解锁
-          </span>
           <span>
             <i className="sw-freeze" />
             封榜区间
@@ -238,21 +228,6 @@ export function Timeline({ t, durationSec, freezeSec, marks, onSeek }: TimelineP
             title={`封榜 ${formatShort(freezeSec)} – ${formatShort(durationSec)}`}
           />
         ) : null}
-
-        {marks.map((m) => (
-          <button
-            key={`${m.sec}-${m.letters.join('')}`}
-            className="tl-mark"
-            style={{ left: `${(m.sec / durationSec) * 100}%` }}
-            title={`${m.letters.join(' ')} 在此解锁 · ${formatShort(m.sec)}`}
-            aria-label={`跳到 ${m.letters.join(' ')} 解锁时刻`}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation()
-              onSeek(m.sec)
-            }}
-          />
-        ))}
 
         <div className="tl-fill" style={{ width: `${ratio * 100}%` }} />
         <div className="tl-cursor" style={{ left: `${ratio * 100}%` }} />

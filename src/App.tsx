@@ -15,7 +15,7 @@ import type { Contest, Settings, WorkbookFile } from './lib/types'
 import { cx, Icon, Toast } from './components/ui'
 import { formatClock } from './lib/format'
 import { BoardTable } from './components/Board'
-import { Playbar, Timeline, type UnlockMark } from './components/Playback'
+import { Playbar, Timeline } from './components/Playback'
 import { Rail } from './components/Rail'
 import { DiagnosticsDialog, ImportDialog, RuleDialog, SettingsDialog, TeamDrawer } from './components/Dialogs'
 import { usePlayback } from './state/usePlayback'
@@ -206,19 +206,6 @@ export default function App() {
     }))
   }, [])
 
-  const marks = useMemo<UnlockMark[]>(() => {
-    if (!plan) return []
-    const groups = new Map<number, string[]>()
-    for (const p of plan.problems) {
-      if (!Number.isFinite(p.unlockSec)) continue
-      const sec = Math.round(p.unlockSec)
-      groups.set(sec, [...(groups.get(sec) ?? []), p.letter])
-    }
-    return [...groups.entries()]
-      .map(([sec, letters]) => ({ sec, letters }))
-      .sort((a, b) => a.sec - b.sec)
-  }, [plan])
-
   const visibleRows = useMemo(() => {
     if (!snapshot) return []
     const q = query.trim().toLowerCase()
@@ -400,7 +387,6 @@ export default function App() {
             t={snapshot.t}
             durationSec={snapshot.durationSec}
             freezeSec={snapshot.freezeSec}
-            marks={marks}
             onSeek={playback.seek}
           />
         </>
