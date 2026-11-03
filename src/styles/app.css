@@ -1344,6 +1344,11 @@ button {
   min-height: 32px;
 }
 
+.manual-frozen {
+  color: var(--amber);
+  opacity: 0.85;
+}
+
 .manual-log {
   list-style: none;
   margin: 0;

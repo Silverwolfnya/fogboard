@@ -161,6 +161,26 @@ describe('快照：我的队伍与口径', () => {
     expect(others.every((r) => r.cells.every((c) => c.kind === 'locked'))).toBe(true)
   })
 
+  it('封榜后自己那行也停住：只有打开「封榜中实时」才继续走', () => {
+    const late = index.teams.find((t) =>
+      Object.values(t.cells).some((c) => c.ac && (c.acceptSec ?? 0) > min(240)),
+    )!
+    expect(late).toBeTruthy()
+    const cell = Object.values(late.cells).find((c) => c.ac && (c.acceptSec ?? 0) > min(240))!
+    const t = (cell.acceptSec ?? 0) + 30
+
+    const settings: Settings = { ...DEFAULT_SETTINGS, selfTeamId: late.id }
+    const frozenRow = snap(t, settings).rows.find((r) => r.teamId === late.id)!
+    const liveRow = snap(t, { ...settings, selfSeesLive: true }).rows.find((r) => r.teamId === late.id)!
+
+    // 封榜中：榜面停在 4:00，自己那行也不更新
+    expect(snap(t, settings).phase).toBe('frozen')
+    expect(liveRow.solved).toBeGreaterThan(frozenRow.solved)
+    // 解封后追上
+    const revealed = snap(t, settings, true).rows.find((r) => r.teamId === late.id)!
+    expect(revealed.solved).toBe(liveRow.solved)
+  })
+
   it('只统计正式队时，N 与行数都变成 319', () => {
     const settings: Settings = { ...DEFAULT_SETTINGS, scope: 'official' }
     const s = snap(min(300), settings)

@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import type { Contest, ManualTeam, Settings, Snapshot } from '../lib/types'
 import type { ContestIndex } from '../lib/model/contest'
 import type { UnlockPlan } from '../lib/rules/unlock'
-import { manualLetterStates } from '../lib/model/manual'
+import { manualCells, manualLetterStates } from '../lib/model/manual'
+import { aggregateTeam } from '../lib/model/aggregate'
 import { formatAcceptTime, formatClock, formatPenalty, formatPercent } from '../lib/format'
 import { cx, Icon } from './ui'
 
@@ -311,6 +312,8 @@ function OverviewPanel({
             pick={manualPick}
             letters={index.letters}
             minutePrecision={minutePrecision}
+            penaltyPerWrongSec={plan.penaltyPerWrongSec}
+            frozen={snapshot.phase === 'frozen' && !snapshot.revealed && !settings.selfSeesLive}
             onPick={onPickProblem}
             onRecord={onRecord}
             onUndo={onUndo}
@@ -401,6 +404,8 @@ function ManualCard({
   pick,
   letters,
   minutePrecision,
+  penaltyPerWrongSec,
+  frozen,
   onPick,
   onRecord,
   onUndo,
@@ -413,6 +418,9 @@ function ManualCard({
   pick: string | null
   letters: string[]
   minutePrecision: boolean
+  penaltyPerWrongSec: number
+  /** 封榜中且没开"自己实时可见"：榜面停住，这张卡片只是自己的记事本 */
+  frozen: boolean
   onPick: (letter: string | null) => void
   onRecord: (letter: string, ac: boolean) => void
   onUndo: () => void
@@ -421,6 +429,11 @@ function ManualCard({
   onEdit: () => void
 }) {
   const states = useMemo(() => manualLetterStates(team, letters), [team, letters])
+  // 自己的账本：与榜面是否冻结无关
+  const agg = useMemo(
+    () => aggregateTeam(manualCells(team, letters), penaltyPerWrongSec),
+    [team, letters, penaltyPerWrongSec],
+  )
   const recent = team.submissions.slice(-5).reverse()
   const [confirmClear, setConfirmClear] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState(false)
@@ -440,10 +453,15 @@ function ManualCard({
       </div>
 
       <div className="manual-meta">
-        {row
-          ? `${row.rank > 0 ? `#${row.rank}` : '—'} · ${row.solved} 题 · 罚时 ${formatPenalty(row.penaltySec)}`
-          : '0 题 · 还没交过'}
+        {frozen ? '—' : row && row.rank > 0 ? `#${row.rank}` : '—'} · {agg.solved} 题 · 罚时{' '}
+        {formatPenalty(agg.penaltySec)}
       </div>
+
+      {frozen ? (
+        <p className="field-help manual-frozen">
+          封榜中：你自己知道结果，但榜面停在封榜时刻 —— 这些要等「解封」或终榜才会上榜。
+        </p>
+      ) : null}
 
       <div className="manual-letters">
         {letters.map((letter) => {

@@ -218,16 +218,18 @@ export default function App() {
       const next = addSubmission(manualTeam, { letter, ac, sec }, letters)
       commitManual(next)
       const minutePrecision = contest.source !== 'xcpclink'
+      const frozen = snapshot?.phase === 'frozen' && !snapshot.revealed
+      const tail = frozen ? '（封榜中，解封后才上榜）' : ''
       if (ac) {
         const wrongs = manualLetterStates(next, letters)[letter].wrongs
         setToast(
-          `${letter} 题通过 · ${formatAcceptTime(sec, minutePrecision)}${wrongs > 0 ? ` · 之前错了 ${wrongs} 次` : ''}`,
+          `${letter} 题通过 · ${formatAcceptTime(sec, minutePrecision)}${wrongs > 0 ? ` · 之前错了 ${wrongs} 次` : ''}${tail}`,
         )
       } else {
-        setToast(`${letter} 题没通过（第 ${manualLetterStates(next, letters)[letter].wrongs} 次）`)
+        setToast(`${letter} 题没通过（第 ${manualLetterStates(next, letters)[letter].wrongs} 次）${tail}`)
       }
     },
-    [manualTeam, contest, playback.t, commitManual],
+    [manualTeam, contest, playback.t, commitManual, snapshot],
   )
 
   const handleUndoSubmission = useCallback(() => {

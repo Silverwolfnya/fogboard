@@ -244,14 +244,15 @@ export function SettingsDialog({
         <div className="setting-text">
           <span className="setting-title">我的队伍</span>
           <span className="setting-desc">
-            {selfName ? `当前：${selfName}。` : '尚未指定。'}它知道自己过了哪些题，所以格子永远可见、封榜中也实时更新。
+            {selfName ? `当前：${selfName}。` : '尚未指定。'}封榜时它也照样停住 —— 和真实榜单一样。
+            打开「实时」只影响你自己那一行，方便一边打一边看账。
           </span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <Switch
             checked={settings.selfSeesLive}
             onChange={(v) => onChange({ selfSeesLive: v })}
-            label="实时"
+            label="封榜中实时"
           />
           {settings.selfTeamId ? (
             <button className="action-btn" onClick={() => onChange({ selfTeamId: null })}>

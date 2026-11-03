@@ -10,6 +10,12 @@ const page = await browser.newPage({ viewport: { width: 1200, height: 800 } })
 await page.goto(BASE, { waitUntil: 'networkidle' })
 await page.getByRole('button', { name: /成都站/ }).click()
 await page.waitForSelector('.board tbody tr')
+// 导入后会弹「创建我的队伍」，这里不需要
+const skip = page.getByRole('button', { name: '先不用' })
+if (await skip.count()) {
+  await skip.click()
+  await page.waitForTimeout(200)
+}
 
 const readClock = async () => {
   const text = (await page.locator('.clock').innerText()).trim()

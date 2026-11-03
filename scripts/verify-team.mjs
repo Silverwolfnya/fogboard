@@ -84,6 +84,28 @@ await seekRatio(1600 / 18000)
 await page.waitForTimeout(300)
 await page.screenshot({ path: 'docs/screenshots/19-virtual-team.png' })
 
+// 7. 封榜之后：榜面停住，只有自己的卡片继续记账
+await seekRatio(16200 / 18000) // 4:30
+const boardBefore = await selfSolved()
+await page.locator('.manual-letters .letter-chip').nth(6).click() // G 题
+await page.getByRole('button', { name: '通过了' }).click()
+await page.waitForTimeout(500)
+const boardAfter = await selfSolved()
+const cardMeta = (await page.locator('.manual-meta').innerText()).replace(/\s+/g, ' ')
+const hint = await page.locator('.manual-frozen').count()
+console.log(`封榜中记一题：榜面 ${boardBefore} → ${boardAfter}，自己的账本「${cardMeta}」，提示 ${hint}`)
+if (boardAfter !== boardBefore) throw new Error('封榜后自己那行不该跟着变')
+if (!cardMeta.includes('2 题')) throw new Error(`自己的账本应该是 2 题：${cardMeta}`)
+if (hint !== 1) throw new Error('没有提示"封榜中"')
+await page.screenshot({ path: 'docs/screenshots/21-frozen-self.png' })
+
+// 8. 解封之后追平
+await page.getByRole('button', { name: '解封' }).click()
+await page.waitForTimeout(500)
+const revealed = await selfSolved()
+console.log(`解封后自己那行：${revealed} 题`)
+if (revealed !== 2) throw new Error(`解封后应该是 2 题，实际 ${revealed}`)
+
 await browser.close()
 if (errors.length) {
   console.error('控制台错误：', errors)
