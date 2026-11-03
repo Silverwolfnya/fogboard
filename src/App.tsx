@@ -184,13 +184,19 @@ export default function App() {
   const handleCreateTeam = useCallback(
     (input: { name: string; organization: string; members: string[] }) => {
       if (!contest) return
-      const team = createManualTeam(input)
+      const base = createManualTeam(input)
+      // 编辑已有队伍时保留提交流水，只改名字
+      const team = manualTeam ? { ...base, submissions: manualTeam.submissions } : base
       commitManual(team)
       setSettings((prev) => ({ ...prev, selfTeamId: MANUAL_TEAM_ID }))
       setDialog(null)
-      setToast(`${team.name} 加入榜单：从现在开始，点「通过了 / 没通过」记录你的提交`)
+      setToast(
+        manualTeam
+          ? `已更新队伍信息：${team.name}`
+          : `${team.name} 加入榜单：从现在开始，点「通过了 / 没通过」记录你的提交`,
+      )
     },
-    [contest, commitManual],
+    [contest, commitManual, manualTeam],
   )
 
   const handleRemoveTeam = useCallback(() => {
