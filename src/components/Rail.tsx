@@ -1,7 +1,8 @@
-import { useMemo } from 'react'
-import type { Contest, Settings, Snapshot } from '../lib/types'
+import { useMemo, useState } from 'react'
+import type { Contest, ManualTeam, Settings, Snapshot } from '../lib/types'
 import type { ContestIndex } from '../lib/model/contest'
 import type { UnlockPlan } from '../lib/rules/unlock'
+import { manualLetterStates } from '../lib/model/manual'
 import { formatAcceptTime, formatClock, formatPenalty, formatPercent } from '../lib/format'
 import { cx, Icon } from './ui'
 
@@ -14,6 +15,15 @@ interface RailProps {
   selectedProblem: string | null
   onSelectProblem: (letter: string | null) => void
   onSelectTeam: (id: string) => void
+  /** 自己创建的虚拟队伍 */
+  manualTeam: ManualTeam | null
+  manualPick: string | null
+  onPickProblem: (letter: string | null) => void
+  onRecord: (letter: string, ac: boolean) => void
+  onUndo: () => void
+  onClear: () => void
+  onCreateTeam: () => void
+  onRemoveTeam: () => void
 }
 
 /** 右栏：要么是题目总览，要么是某道题的详情（解锁后才看得到名单） */
@@ -56,7 +66,7 @@ function ProblemPanel({
   const problem = snapshot.problems.find((p) => p.letter === letter)
 
   const solvers = useMemo(() => {
-    const teams = settings.scope === 'official' ? index.officialTeams : index.teams
+    const teams = settings.scope === 'official' ? index.officialTeams : index.fieldTeams
     const out: {
       teamId: string
       name: string
@@ -146,6 +156,14 @@ function OverviewPanel({
   settings,
   onSelectProblem,
   onSelectTeam,
+  manualTeam,
+  manualPick,
+  onPickProblem,
+  onRecord,
+  onUndo,
+  onClear,
+  onCreateTeam,
+  onRemoveTeam,
 }: Omit<RailProps, 'selectedProblem'>) {
   const minutePrecision = contest.source !== 'xcpclink'
   const self = settings.selfTeamId ? snapshot.rows.find((r) => r.teamId === settings.selfTeamId) : null
@@ -284,30 +302,54 @@ function OverviewPanel({
       <section className="rail-section">
         <div className="rail-head">
           <h2>我的队伍</h2>
-          <span className="aside">仅自己可见</span>
+          <span className="aside">{manualTeam ? '虚拟 · 仅自己可见' : '仅自己可见'}</span>
         </div>
-        {self ? (
-          <div className="self-card">
-            <button
-              className="name"
-              onClick={() => onSelectTeam(self.teamId)}
-              style={{ textAlign: 'left', overflow: 'hidden' }}
-            >
-              {self.team.name}
+        {manualTeam ? (
+          <ManualCard
+            team={manualTeam}
+            row={self ?? null}
+            pick={manualPick}
+            letters={index.letters}
+            minutePrecision={minutePrecision}
+            onPick={onPickProblem}
+            onRecord={onRecord}
+            onUndo={onUndo}
+            onClear={onClear}
+            onRemove={onRemoveTeam}
+            onEdit={onCreateTeam}
+          />
+        ) : self ? (
+          <>
+            <div className="self-card">
+              <button
+                className="name"
+                onClick={() => onSelectTeam(self.teamId)}
+                style={{ textAlign: 'left', overflow: 'hidden' }}
+              >
+                {self.team.name}
+              </button>
+              <div className="meta">
+                #{self.rank} · {self.solved} 题 · 罚时 {formatPenalty(self.penaltySec)}
+              </div>
+              <div className="meta">
+                最近通过 {self.lastAcSec >= 0 ? formatAcceptTime(self.lastAcSec, minutePrecision) : '—'}
+              </div>
+            </div>
+            <button className="action-btn" onClick={onCreateTeam}>
+              换成自己的虚拟队伍
             </button>
-            <div className="meta">
-              #{self.rank} · {self.solved} 题 · 罚时 {formatPenalty(self.penaltySec)}
-            </div>
-            <div className="meta">
-              最近通过 {self.lastAcSec >= 0 ? formatAcceptTime(self.lastAcSec, minutePrecision) : '—'}
-            </div>
-          </div>
+          </>
         ) : (
-          <p className="self-empty">
-            点榜单里的任意一队，在抽屉里设为「我的队伍」。
-            <br />
-            它知道自己过了哪些题，明细只在抽屉里给你看。
-          </p>
+          <>
+            <p className="self-empty">
+              点榜单里的任意一队，在抽屉里设为「我的队伍」。
+              <br />
+              你自己没打过这场？建一支虚拟队伍，边打边记。
+            </p>
+            <button className="action-btn primary" onClick={onCreateTeam}>
+              创建我的队伍
+            </button>
+          </>
         )}
       </section>
 
@@ -346,5 +388,159 @@ function OverviewPanel({
         </div>
       ) : null}
     </aside>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* 虚拟队伍记分板                                                       */
+/* ------------------------------------------------------------------ */
+
+function ManualCard({
+  team,
+  row,
+  pick,
+  letters,
+  minutePrecision,
+  onPick,
+  onRecord,
+  onUndo,
+  onClear,
+  onRemove,
+  onEdit,
+}: {
+  team: ManualTeam
+  row: { rank: number; solved: number; penaltySec: number } | null
+  pick: string | null
+  letters: string[]
+  minutePrecision: boolean
+  onPick: (letter: string | null) => void
+  onRecord: (letter: string, ac: boolean) => void
+  onUndo: () => void
+  onClear: () => void
+  onRemove: () => void
+  onEdit: () => void
+}) {
+  const states = useMemo(() => manualLetterStates(team, letters), [team, letters])
+  const recent = team.submissions.slice(-5).reverse()
+  const [confirmClear, setConfirmClear] = useState(false)
+  const [confirmRemove, setConfirmRemove] = useState(false)
+
+  const picked = pick ? states[pick] : null
+  const locked = picked?.ac === true
+
+  return (
+    <div className="manual">
+      <div className="manual-head">
+        <span className="manual-name" title={team.members.join('、')}>
+          {team.name}
+        </span>
+        <button className="text-btn" onClick={onEdit}>
+          编辑
+        </button>
+      </div>
+
+      <div className="manual-meta">
+        {row
+          ? `${row.rank > 0 ? `#${row.rank}` : '—'} · ${row.solved} 题 · 罚时 ${formatPenalty(row.penaltySec)}`
+          : '0 题 · 还没交过'}
+      </div>
+
+      <div className="manual-letters">
+        {letters.map((letter) => {
+          const st = states[letter]
+          return (
+            <button
+              key={letter}
+              className={cx(
+                'letter-chip',
+                st.ac && 'is-ac',
+                !st.ac && st.wrongs > 0 && 'is-wrong',
+                pick === letter && 'is-pick',
+              )}
+              onClick={() => onPick(pick === letter ? null : letter)}
+              title={
+                st.ac
+                  ? `${letter} 题 · 通过 ${formatAcceptTime(st.acceptSec ?? 0, minutePrecision)}${
+                      st.wrongs > 0 ? ` · 之前错 ${st.wrongs} 次` : ''
+                    }`
+                  : `${letter} 题${st.wrongs > 0 ? ` · 已错 ${st.wrongs} 次` : ''}`
+              }
+            >
+              <b>{letter}</b>
+              <i>{st.ac ? '✓' : st.wrongs > 0 ? st.wrongs : ''}</i>
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="manual-actions">
+        <button
+          className="action-btn primary"
+          disabled={!pick || locked}
+          onClick={() => pick && onRecord(pick, true)}
+        >
+          通过了
+        </button>
+        <button
+          className="action-btn"
+          disabled={!pick || locked}
+          onClick={() => pick && onRecord(pick, false)}
+        >
+          没通过
+        </button>
+      </div>
+
+      <p className="field-help manual-hint">
+        {!pick
+          ? '先点一个题号，再选「通过了 / 没通过」（Enter / Backspace 也行）'
+          : locked
+            ? `${pick} 题已经通过了`
+            : `${pick} 题${picked && picked.wrongs > 0 ? ` · 已错 ${picked.wrongs} 次` : ' · 还没交过'}`}
+      </p>
+
+      {recent.length > 0 ? (
+        <ul className="manual-log">
+          {recent.map((s, i) => (
+            <li key={`${s.sec}-${s.letter}-${i}`}>
+              <span className="ml-time">{formatAcceptTime(s.sec, minutePrecision)}</span>
+              <span className="ml-letter">{s.letter}</span>
+              <span className={cx('ml-res', s.ac ? 'ok' : 'no')}>{s.ac ? '通过' : '没通过'}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      <div className="manual-foot">
+        <button className="text-btn" onClick={onUndo} disabled={team.submissions.length === 0}>
+          撤销
+        </button>
+        <button
+          className="text-btn"
+          onClick={() => {
+            if (confirmClear) {
+              onClear()
+              setConfirmClear(false)
+            } else {
+              setConfirmClear(true)
+              window.setTimeout(() => setConfirmClear(false), 2600)
+            }
+          }}
+        >
+          {confirmClear ? '确定清空？' : '清空'}
+        </button>
+        <button
+          className="text-btn danger"
+          onClick={() => {
+            if (confirmRemove) onRemove()
+            else {
+              setConfirmRemove(true)
+              window.setTimeout(() => setConfirmRemove(false), 2600)
+            }
+          }}
+        >
+          {confirmRemove ? '确定移除？' : '移除队伍'}
+        </button>
+      </div>
+    </div>
   )
 }

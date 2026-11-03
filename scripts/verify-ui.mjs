@@ -32,8 +32,19 @@ await page.goto(BASE, { waitUntil: 'networkidle' })
 await page.waitForSelector('.empty')
 await shot('01-empty')
 
+// 导入榜单后会弹「创建我的队伍」，这里先跳过（专属流程见 verify-team.mjs）
+const skipTeamDialog = async () => {
+  await page.waitForTimeout(300)
+  const btn = page.getByRole('button', { name: '先不用' })
+  if (await btn.count()) {
+    await btn.click()
+    await page.waitForTimeout(200)
+  }
+}
+
 // 载入成都站示例
 await page.getByRole('button', { name: /成都站/ }).click()
+await skipTeamDialog()
 await page.waitForSelector('.board tbody tr')
 const rowCount = await page.locator('.board tbody tr').count()
 const colCount = await page.locator('.board thead th').count()
@@ -146,6 +157,7 @@ await page.locator('.play-btn').click()
 await page.getByRole('button', { name: '导入' }).click()
 await page.waitForSelector('.dialog')
 await page.getByRole('button', { name: /秦皇岛站/ }).click()
+await skipTeamDialog()
 await page.waitForSelector('.board tbody tr')
 const qhdRows = await page.locator('.board tbody tr').count()
 console.log(`秦皇岛 rows=${qhdRows}`)
@@ -173,6 +185,7 @@ await page.locator('.search-clear').click()
 await page.getByRole('button', { name: '导入' }).click()
 await page.waitForSelector('.dialog')
 await page.getByRole('button', { name: /成都站/ }).click()
+await skipTeamDialog()
 await page.waitForSelector('.board tbody tr')
 await seekRatio(3600 / 18000)
 
@@ -228,6 +241,7 @@ await shot('17-qoj-import')
 const qojText = readFileSync('fixtures/qoj-paste.txt', 'utf8')
 await page.locator('.qoj-input').fill(qojText)
 await page.getByRole('button', { name: '导入这段内容' }).click()
+await skipTeamDialog()
 await page.waitForTimeout(500)
 const qojRows = await page.locator('.board tbody tr').count()
 const railText = await page.locator('.rail').innerText()

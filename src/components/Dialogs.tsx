@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import type { Contest, ProblemView, RowView, Settings, SheetAnalysis } from '../lib/types'
+import type { Contest, ManualTeam, ProblemView, RowView, Settings, SheetAnalysis } from '../lib/types'
 import type { WorkbookReport } from '../lib/parse/detect'
 import { computeThreshold } from '../lib/rules/unlock'
 import { QOJ_SNIPPET } from '../lib/parse/qoj'
@@ -611,6 +611,91 @@ export function DiagnosticsDialog({
           </div>
         </div>
       ) : null}
+    </Modal>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* 创建我的虚拟队伍                                                     */
+/* ------------------------------------------------------------------ */
+
+export function CreateTeamDialog({
+  existing,
+  onSubmit,
+  onClose,
+}: {
+  existing: ManualTeam | null
+  onSubmit: (input: { name: string; organization: string; members: string[] }) => void
+  onClose: () => void
+}) {
+  const [name, setName] = useState(existing?.name ?? '')
+  const [organization, setOrganization] = useState(existing?.organization ?? '')
+  const [members, setMembers] = useState(existing?.members.join(', ') ?? '')
+
+  const submit = () => {
+    if (!name.trim()) return
+    onSubmit({
+      name: name.trim(),
+      organization: organization.trim(),
+      members: members.split(/[,，]/).map((s) => s.trim()).filter(Boolean),
+    })
+  }
+
+  return (
+    <Modal
+      title={existing ? '编辑我的队伍' : '创建我的队伍'}
+      onClose={onClose}
+      footer={
+        <>
+          <button className="action-btn" onClick={onClose}>
+            先不用
+          </button>
+          <button className="action-btn primary" disabled={!name.trim()} onClick={submit}>
+            {existing ? '保存' : '创建并加入榜单'}
+          </button>
+        </>
+      }
+    >
+      <p className="field-help">
+        这支队伍不在榜单里 —— 它是你自己。创建后会以「虚拟」身份出现在榜上参与排名，
+        但你的提交不会点亮题卡、也不会改变别人的名次。
+        <br />
+        之后在右栏「我的队伍」里，选题号 + 「通过了 / 没通过」记录你的每一次提交，时刻取当前回放时刻。
+      </p>
+
+      <div className="field">
+        <span className="field-label">队名</span>
+        <input
+          className="input"
+          value={name}
+          autoFocus
+          placeholder="例如：孤军奋战"
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submit()
+          }}
+        />
+      </div>
+
+      <div className="field">
+        <span className="field-label">学校 / 组织（可选）</span>
+        <input
+          className="input"
+          value={organization}
+          placeholder="例如：某大学"
+          onChange={(e) => setOrganization(e.target.value)}
+        />
+      </div>
+
+      <div className="field">
+        <span className="field-label">队员（可选，逗号分隔）</span>
+        <input
+          className="input"
+          value={members}
+          placeholder="例如：张三, 李四, 王五"
+          onChange={(e) => setMembers(e.target.value)}
+        />
+      </div>
     </Modal>
   )
 }

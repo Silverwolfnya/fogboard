@@ -90,6 +90,7 @@ const TeamRow = memo(function TeamRow({
           title={`${team.name}${subtitle ? ` · ${subtitle}` : ''}`}
         >
           <span className="team-name">{team.name}</span>
+          {team.virtual ? <span className="tag-virtual">虚拟</span> : null}
           {team.organization ? <span className="team-org">{team.organization}</span> : null}
         </button>
       </td>

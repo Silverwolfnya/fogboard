@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "verify:ui": "node scripts/verify-ui.mjs",
+    "verify:team": "node scripts/verify-team.mjs",
     "verify:single": "node scripts/verify-single.mjs",
     "verify:background": "node scripts/verify-background.mjs"
   },

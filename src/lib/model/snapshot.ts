@@ -57,7 +57,9 @@ export function buildSnapshot(opts: SnapshotOptions): Snapshot {
     }
   })
 
-  const teams = settings.scope === 'official' ? index.officialTeams : index.teams
+  // 虚拟队伍永远出现在榜上（哪怕口径是"仅正式队"，否则一勾自己就消失了）
+  const roster = settings.scope === 'official' ? index.officialTeams : index.fieldTeams
+  const teams = index.virtualTeams.length ? [...roster, ...index.virtualTeams] : roster
   const entries: (RankEntry & { row: RowView })[] = []
 
   for (const team of teams) {
@@ -143,6 +145,8 @@ export function buildSnapshot(opts: SnapshotOptions): Snapshot {
   let solvedTeams = 0
   let acceptedRecent = 0
   for (const row of rows) {
+    // 全场统计只算官方队伍，虚拟队伍不参与
+    if (row.team.virtual) continue
     totalAc += row.solved
     if (row.solved > 0) solvedTeams += 1
     for (const cell of row.cells) if (cell.recent) acceptedRecent += 1
@@ -157,7 +161,7 @@ export function buildSnapshot(opts: SnapshotOptions): Snapshot {
     revealed,
     threshold: plan.threshold.threshold,
     thresholdSource: plan.threshold.source,
-    teamCount: teams.length,
+    teamCount: roster.length,
     problems,
     rows,
     stats: {

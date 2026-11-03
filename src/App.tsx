@@ -8,19 +8,37 @@ import { parseXcpcio } from './lib/parse/xcpcio'
 import { parseXcpclink } from './lib/parse/xcpclink'
 import { dumpFromText, parseQojDump } from './lib/parse/qoj'
 import { buildIndex, createContest } from './lib/model/contest'
+import {
+  MANUAL_TEAM_ID,
+  addSubmission,
+  clearSubmissions,
+  createManualTeam,
+  loadManualTeam,
+  manualLetterStates,
+  manualTeamRecord,
+  saveManualTeam,
+  undoLastSubmission,
+} from './lib/model/manual'
 import { computeUnlocks } from './lib/rules/unlock'
 import { buildSnapshot } from './lib/model/snapshot'
 import { DEFAULT_SETTINGS, loadSettings, normalizeSettings, saveSettings } from './lib/rules/settings'
-import type { Contest, Settings, WorkbookFile } from './lib/types'
+import type { Contest, ManualTeam, Settings, WorkbookFile } from './lib/types'
 import { cx, Icon, Toast } from './components/ui'
-import { formatClock } from './lib/format'
+import { formatAcceptTime, formatClock } from './lib/format'
 import { BoardTable } from './components/Board'
 import { Playbar, Timeline } from './components/Playback'
 import { Rail } from './components/Rail'
-import { DiagnosticsDialog, ImportDialog, RuleDialog, SettingsDialog, TeamDrawer } from './components/Dialogs'
+import {
+  CreateTeamDialog,
+  DiagnosticsDialog,
+  ImportDialog,
+  RuleDialog,
+  SettingsDialog,
+  TeamDrawer,
+} from './components/Dialogs'
 import { usePlayback } from './state/usePlayback'
 
-type DialogName = 'import' | 'settings' | 'help' | 'diagnostics' | null
+type DialogName = 'import' | 'settings' | 'help' | 'diagnostics' | 'team' | null
 
 const SAMPLE_FILE = {
   chengdu: 'board-xcpcio-chengdu.xlsx',
@@ -40,8 +58,18 @@ export default function App() {
   const [query, setQuery] = useState('')
   const [toast, setToast] = useState<string | null>(null)
   const [railOpen, setRailOpen] = useState(true)
+  const [manualTeam, setManualTeam] = useState<ManualTeam | null>(null)
+  const [manualPick, setManualPick] = useState<string | null>(null)
 
-  const index = useMemo(() => (contest ? buildIndex(contest) : null), [contest])
+  // 虚拟队伍并入参赛名单：它只上榜，不参与解锁与统计
+  const effectiveContest = useMemo<Contest | null>(() => {
+    if (!contest) return null
+    if (!manualTeam) return contest
+    const letters = contest.problems.map((p) => p.letter)
+    return { ...contest, teams: [...contest.teams, manualTeamRecord(manualTeam, letters)] }
+  }, [contest, manualTeam])
+
+  const index = useMemo(() => (effectiveContest ? buildIndex(effectiveContest) : null), [effectiveContest])
   const plan = useMemo(() => (index ? computeUnlocks(index, settings) : null), [index, settings])
   const durationSec = plan?.durationSec ?? 300 * 60
   const playback = usePlayback(durationSec)
@@ -63,6 +91,7 @@ export default function App() {
 
   const finishLoad = useCallback(
     (next: Contest, sheetLabel: string) => {
+      const saved = loadManualTeam(next.id)
       setContest(next)
       setSheetName(sheetLabel)
       setManualReveal(false)
@@ -73,9 +102,9 @@ export default function App() {
         ...prev,
         durationMin: Math.round(next.suggestedDurationSec / 60),
         freezeStartMin: Math.round(next.suggestedFreezeSec / 60),
-        selfTeamId: null,
+        selfTeamId: saved ? MANUAL_TEAM_ID : null,
       }))
-      setDialog(null)
+      setDialog(saved ? null : 'team')
       setToast(`${next.title} · ${next.teams.length} 支队伍 · ${next.problems.length} 道题`)
       playback.pause()
       playback.seek(0)
@@ -132,6 +161,81 @@ export default function App() {
     },
     [finishLoad],
   )
+
+  /** 切换榜单时恢复属于自己的那支虚拟队伍 */
+  useEffect(() => {
+    if (!contest) {
+      setManualTeam(null)
+      return
+    }
+    const saved = loadManualTeam(contest.id)
+    setManualTeam(saved)
+    if (saved) setSettings((prev) => ({ ...prev, selfTeamId: MANUAL_TEAM_ID }))
+  }, [contest])
+
+  const commitManual = useCallback(
+    (next: ManualTeam | null) => {
+      setManualTeam(next)
+      if (contest) saveManualTeam(contest.id, next)
+    },
+    [contest],
+  )
+
+  const handleCreateTeam = useCallback(
+    (input: { name: string; organization: string; members: string[] }) => {
+      if (!contest) return
+      const team = createManualTeam(input)
+      commitManual(team)
+      setSettings((prev) => ({ ...prev, selfTeamId: MANUAL_TEAM_ID }))
+      setDialog(null)
+      setToast(`${team.name} 加入榜单：从现在开始，点「通过了 / 没通过」记录你的提交`)
+    },
+    [contest, commitManual],
+  )
+
+  const handleRemoveTeam = useCallback(() => {
+    commitManual(null)
+    setSettings((prev) => ({ ...prev, selfTeamId: null }))
+    setToast('已移除虚拟队伍')
+  }, [commitManual])
+
+  const handleRecord = useCallback(
+    (letter: string, ac: boolean) => {
+      if (!manualTeam || !contest) return
+      const letters = contest.problems.map((p) => p.letter)
+      const before = manualLetterStates(manualTeam, letters)[letter]
+      if (before?.ac) {
+        setToast(`${letter} 题已经通过了`)
+        return
+      }
+      const sec = Math.floor(playback.t)
+      const next = addSubmission(manualTeam, { letter, ac, sec }, letters)
+      commitManual(next)
+      const minutePrecision = contest.source !== 'xcpclink'
+      if (ac) {
+        const wrongs = manualLetterStates(next, letters)[letter].wrongs
+        setToast(
+          `${letter} 题通过 · ${formatAcceptTime(sec, minutePrecision)}${wrongs > 0 ? ` · 之前错了 ${wrongs} 次` : ''}`,
+        )
+      } else {
+        setToast(`${letter} 题没通过（第 ${manualLetterStates(next, letters)[letter].wrongs} 次）`)
+      }
+    },
+    [manualTeam, contest, playback.t, commitManual],
+  )
+
+  const handleUndoSubmission = useCallback(() => {
+    if (!manualTeam || manualTeam.submissions.length === 0) return
+    const last = manualTeam.submissions[manualTeam.submissions.length - 1]
+    commitManual(undoLastSubmission(manualTeam))
+    setToast(`撤销：${last.letter} 题 ${last.ac ? '通过' : '没通过'} · ${formatClock(last.sec)}`)
+  }, [manualTeam, commitManual])
+
+  const handleClearSubmissions = useCallback(() => {
+    if (!manualTeam) return
+    commitManual(clearSubmissions(manualTeam))
+    setToast('已清空所有提交记录')
+  }, [manualTeam, commitManual])
 
   const loadFromBuffer = useCallback(
     (buffer: ArrayBuffer, fileName: string) => {
@@ -255,13 +359,26 @@ export default function App() {
         case 'U':
           setManualReveal((v) => !v)
           break
+        case 'Enter':
+          // 虚拟队伍：选中的题记为通过（别抢按钮自己的 Enter）
+          if (manualPick && tag !== 'BUTTON') {
+            e.preventDefault()
+            handleRecord(manualPick, true)
+          }
+          break
+        case 'Backspace':
+          if (manualPick && tag !== 'BUTTON') {
+            e.preventDefault()
+            handleRecord(manualPick, false)
+          }
+          break
         default:
           break
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [playback, dialog, selectedTeam, durationSec])
+  }, [playback, dialog, selectedTeam, durationSec, manualPick, handleRecord])
 
   const selfName =
     (settings.selfTeamId && index?.teamById.get(settings.selfTeamId)?.name) || null
@@ -379,6 +496,14 @@ export default function App() {
                 selectedProblem={selectedProblem}
                 onSelectProblem={setSelectedProblem}
                 onSelectTeam={setSelectedTeam}
+                manualTeam={manualTeam}
+                manualPick={manualPick}
+                onPickProblem={setManualPick}
+                onRecord={handleRecord}
+                onUndo={handleUndoSubmission}
+                onClear={handleClearSubmissions}
+                onCreateTeam={() => setDialog('team')}
+                onRemoveTeam={handleRemoveTeam}
               />
             ) : null}
           </main>
@@ -414,7 +539,9 @@ export default function App() {
       {dialog === 'settings' ? (
         <SettingsDialog
           settings={settings}
-          teamCount={index ? (settings.scope === 'official' ? index.officialTeams.length : index.teams.length) : 0}
+          teamCount={
+            index ? (settings.scope === 'official' ? index.officialTeams.length : index.fieldTeams.length) : 0
+          }
           selfName={selfName}
           onChange={patchSettings}
           onReset={resetSettings}
@@ -423,6 +550,14 @@ export default function App() {
       ) : null}
 
       {dialog === 'help' ? <RuleDialog onClose={() => setDialog(null)} /> : null}
+
+      {dialog === 'team' ? (
+        <CreateTeamDialog
+          existing={manualTeam}
+          onSubmit={handleCreateTeam}
+          onClose={() => setDialog(null)}
+        />
+      ) : null}
 
       {dialog === 'diagnostics' && contest ? (
         <DiagnosticsDialog

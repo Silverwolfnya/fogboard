@@ -61,7 +61,8 @@ export function computeUnlocks(index: ContestIndex, s: Settings): UnlockPlan {
   const freezeActive = Number.isFinite(freezeSec)
 
   const officialOnly = s.scope === 'official'
-  const n = officialOnly ? index.officialTeams.length : index.teams.length
+  // 虚拟队伍不计入 N：你解题不会改变阈值
+  const n = officialOnly ? index.officialTeams.length : index.fieldTeams.length
   const threshold = computeThreshold(n, s)
   const k = threshold.threshold
 

@@ -104,7 +104,11 @@ export interface ContestIndex {
   contest: Contest
   letters: string[]
   teams: TeamRecord[]
+  /** 参与解锁统计的队伍（不含虚拟队伍） */
+  fieldTeams: TeamRecord[]
   officialTeams: TeamRecord[]
+  /** 自己创建的虚拟队伍 */
+  virtualTeams: TeamRecord[]
   teamById: Map<string, TeamRecord>
   /** 每题全部 AC 时刻（升序） */
   acSecs: Record<string, number[]>
@@ -125,9 +129,13 @@ export function buildIndex(contest: Contest): ContestIndex {
     officialAcSecs[letter] = []
   }
 
+  // 虚拟队伍只上榜，不进任何统计
+  const fieldTeams = contest.teams.filter((t) => !t.virtual)
+  const virtualTeams = contest.teams.filter((t) => t.virtual)
+
   let maxAcceptSec = 0
   let totalAc = 0
-  for (const team of contest.teams) {
+  for (const team of fieldTeams) {
     for (const letter of letters) {
       const cell = team.cells[letter]
       if (!cell?.ac || cell.acceptSec == null) continue
@@ -151,7 +159,9 @@ export function buildIndex(contest: Contest): ContestIndex {
     contest,
     letters,
     teams: contest.teams,
-    officialTeams: contest.teams.filter((t) => t.markers.official),
+    fieldTeams,
+    officialTeams: fieldTeams.filter((t) => t.markers.official),
+    virtualTeams,
     teamById: new Map(contest.teams.map((t) => [t.id, t])),
     acSecs,
     officialAcSecs,

@@ -1242,6 +1242,173 @@ button {
 }
 
 /* =========================================================
+   虚拟队伍记分板
+   ========================================================= */
+
+.manual {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.manual-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.manual-name {
+  font-size: 13px;
+  color: #ffd9a8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manual-meta {
+  font-family: var(--font-num);
+  font-size: 11px;
+  color: var(--dim);
+  letter-spacing: 0.02em;
+}
+
+.manual-letters {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.letter-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 5px 0 4px;
+  background: #17140f;
+  border: 1px solid var(--line-2);
+  border-radius: 3px;
+  color: var(--dim);
+  font-family: var(--font-num);
+  font-size: 12px;
+  line-height: 1;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.letter-chip b {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.letter-chip i {
+  font-style: normal;
+  font-size: 9px;
+  color: var(--mist);
+  min-height: 9px;
+}
+
+.letter-chip:hover {
+  border-color: rgba(242, 163, 60, 0.45);
+  color: var(--text);
+}
+
+.letter-chip.is-ac {
+  border-color: rgba(70, 177, 131, 0.55);
+  background: rgba(70, 177, 131, 0.12);
+  color: var(--jade);
+}
+
+.letter-chip.is-ac i {
+  color: var(--jade);
+}
+
+.letter-chip.is-wrong i {
+  color: var(--amber);
+}
+
+.letter-chip.is-pick {
+  outline: 1px solid var(--amber);
+  outline-offset: 1px;
+}
+
+.manual-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.manual-hint {
+  min-height: 32px;
+}
+
+.manual-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.manual-log li {
+  display: grid;
+  grid-template-columns: 54px 16px 1fr;
+  gap: 6px;
+  font-family: var(--font-num);
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.manual-log .ml-res.ok {
+  color: var(--jade);
+}
+
+.manual-log .ml-res.no {
+  color: var(--amber);
+}
+
+.manual-foot {
+  display: flex;
+  gap: 12px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+
+.text-btn {
+  font-size: 11.5px;
+  color: var(--mist);
+  padding: 2px 0;
+  transition: color 0.12s ease;
+}
+
+.text-btn:hover {
+  color: var(--text);
+}
+
+.text-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.text-btn.danger:hover {
+  color: #e2685f;
+}
+
+.tag-virtual {
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--amber);
+  border: 1px solid rgba(242, 163, 60, 0.45);
+  vertical-align: 1px;
+}
+
+/* =========================================================
    时间轴
    ========================================================= */
 

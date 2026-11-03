@@ -49,6 +49,28 @@ export interface TeamRecord {
   source: TeamSource
   /** 仅保存真正有提交的题目，键为题目字母 */
   cells: Record<string, CellResult>
+  /**
+   * 自己手工组建的虚拟队伍：会出现在榜上参与排名，
+   * 但不计入解锁阈值、首杀与全场统计（别人看不见你）。
+   */
+  virtual?: boolean
+}
+
+/** 一次手工记录的提交 */
+export interface ManualSubmission {
+  letter: string
+  ac: boolean
+  /** 记录时的赛时秒数 */
+  sec: number
+}
+
+/** 用户自己"参加"这场 VP 的队伍 */
+export interface ManualTeam {
+  id: string
+  name: string
+  organization: string
+  members: string[]
+  submissions: ManualSubmission[]
 }
 
 export interface ProblemInfo {
