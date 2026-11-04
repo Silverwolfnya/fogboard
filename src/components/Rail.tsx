@@ -194,6 +194,12 @@ function OverviewPanel({
   const lastX = (cut / (curve.length - 1)) * w
   const cursorX = (snapshot.dataT / snapshot.durationSec) * w
 
+  // 已解锁的按题号排；没解锁的按热度排 —— 位置本身不能泄露题号
+  const openProblems = snapshot.problems.filter((p) => p.unlocked)
+  const foggyProblems = snapshot.problems
+    .filter((p) => !p.unlocked)
+    .sort((a, b) => b.accepted - a.accepted || b.submitted - a.submitted)
+
   return (
     <aside className="rail" aria-label="题目与统计">
       <section className="rail-section">
@@ -204,38 +210,46 @@ function OverviewPanel({
           </span>
         </div>
         <div className="problem-grid">
-          {snapshot.problems.map((p) => (
+          {openProblems.map((p) => (
             <button
               key={p.letter}
-              className={cx('pcard', p.unlocked ? 'open' : 'locked', p.justUnlocked && 'just')}
+              className={cx('pcard', 'open', p.justUnlocked && 'just')}
               onClick={() => onSelectProblem(p.letter)}
-              title={
-                p.unlocked
-                  ? `${p.letter} 题 · ${p.accepted} 队通过 · ${formatClock(p.unlockSec)} 解锁`
-                  : `${p.letter} 题 · 未解锁${
-                      settings.showLockedProgress ? ` · ${p.accepted}/${p.threshold ?? '—'}` : ''
-                    }`
-              }
+              title={`${p.letter} 题 · ${p.accepted} 队通过 · ${p.submitted} 次提交 · ${formatClock(p.unlockSec)} 解锁`}
             >
               <span className="l">{p.letter}</span>
-              <span className="v">
-                {p.unlocked ? (
-                  p.accepted
-                ) : (
-                  <>
-                    <Icon name="lock" className="pcard-lock" />
-                    {settings.showLockedProgress ? (
-                      <em>
-                        {p.accepted}/{p.threshold ?? '∞'}
-                      </em>
-                    ) : null}
-                  </>
-                )}
+              <span className="v">{p.accepted}</span>
+              <span className="s" title={p.submittedPending > 0 ? `另有 ${p.submittedPending} 次错误提交没有时刻，解封后计入` : '提交数'}>
+                {p.submitted}
+                {p.submittedPending > 0 ? '+' : ''}
+              </span>
+            </button>
+          ))}
+          {foggyProblems.map((p) => (
+            <button
+              key={p.letter}
+              className={cx('pcard', 'locked', p.justUnlocked && 'just')}
+              onClick={() => onSelectProblem(p.letter)}
+              title={`未解锁题目 · ${p.accepted} 队通过 · ${p.submitted} 次提交${
+                settings.showLockedProgress ? ` · 阈值 ${p.threshold ?? '∞'}` : ''
+              }`}
+            >
+              <span className="l">
+                <Icon name="lock" className="pcard-lock" />
+              </span>
+              <span className="v">{p.accepted}</span>
+              <span className="s" title={p.submittedPending > 0 ? `另有 ${p.submittedPending} 次错误提交没有时刻，解封后计入` : '提交数'}>
+                {p.submitted}
+                {p.submittedPending > 0 ? '+' : ''}
               </span>
             </button>
           ))}
         </div>
-        <p className="field-help">点开已解锁的题目，看是哪几支队通过的。</p>
+        <p className="field-help">
+          {foggyProblems.length > 0
+            ? `上排是已解锁的题目（标着题号）；下面 ${foggyProblems.length} 张还没解锁，只给通过 / 提交数，按热度排。`
+            : '全部题目都已解锁：点开任意一张，看是哪几支队通过的。'}
+        </p>
       </section>
 
       <section className="rail-section">

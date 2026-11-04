@@ -82,7 +82,10 @@ const TeamRow = memo(function TeamRow({
 
   return (
     <tr className={cx('row', row.isSelf && 'is-self', row.rank >= 1 && row.rank <= 3 && 'is-top')}>
-      <td className="c-rank">{row.rank > 0 ? row.rank : '–'}</td>
+      <td className={cx('c-rank', row.medal && `has-${row.medal}`)}>
+        <i className={cx('rank-medal', row.medal && `medal-${row.medal}`)} aria-hidden="true" />
+        <span className="rank-num">{row.rank > 0 ? row.rank : '–'}</span>
+      </td>
       <td className="c-team">
         <button
           className="team-button"
@@ -132,7 +135,8 @@ function solvesEqual(a: SolveView[], b: SolveView[]): boolean {
       x.attempts !== y.attempts ||
       x.acceptSec !== y.acceptSec ||
       x.recent !== y.recent ||
-      x.firstBlood !== y.firstBlood
+      x.firstBlood !== y.firstBlood ||
+      x.letter !== y.letter
     ) {
       return false
     }
@@ -155,6 +159,7 @@ function areRowsEqual(a: TeamRowProps, b: TeamRowProps): boolean {
     a.row.solved !== b.row.solved ||
     a.row.penaltySec !== b.row.penaltySec ||
     a.row.isSelf !== b.row.isSelf ||
+    a.row.medal !== b.row.medal ||
     a.row.team.name !== b.row.team.name ||
     a.row.team.organization !== b.row.team.organization
   ) {
@@ -175,11 +180,13 @@ function SolveCell({
   return (
     <td
       className={cx('pcell', solve.recent && 'is-recent')}
-      title={`第 ${ordinal} 次通过 · ${formatAcceptTime(solve.acceptSec, minutePrecision)} · ${
-        solve.attempts
-      } 次提交${solve.firstBlood ? ' · 首杀' : ''}`}
+      title={`第 ${ordinal} 次通过${solve.letter ? ` · ${solve.letter} 题` : ''} · ${formatAcceptTime(
+        solve.acceptSec,
+        minutePrecision,
+      )} · ${solve.attempts} 次提交${solve.firstBlood ? ' · 首杀' : ''}`}
     >
       <span className="tile">
+        {solve.letter ? <span className="tile-letter">{solve.letter}</span> : null}
         <span className="tile-main">+{solve.attempts}</span>
         <span className="tile-time">{formatAcceptTime(solve.acceptSec, minutePrecision)}</span>
       </span>

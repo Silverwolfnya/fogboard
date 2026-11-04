@@ -663,6 +663,45 @@ button {
   font-size: 13px;
   color: var(--dim);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 奖牌线：排名前面那一小条 —— 金 / 银 / 棕，铁牌不渲染但留位对齐 */
+.rank-medal {
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  margin-right: 7px;
+  border-radius: 1px;
+  vertical-align: -2px;
+  background: transparent;
+}
+
+.rank-medal.medal-gold {
+  background: linear-gradient(180deg, #f8dd8c, #c2932a);
+  box-shadow: 0 0 7px rgba(248, 221, 140, 0.45);
+}
+
+.rank-medal.medal-silver {
+  background: linear-gradient(180deg, #e8eef4, #93a1af);
+  box-shadow: 0 0 7px rgba(232, 238, 244, 0.3);
+}
+
+.rank-medal.medal-bronze {
+  background: linear-gradient(180deg, #cf9060, #85542f);
+  box-shadow: 0 0 7px rgba(207, 144, 96, 0.3);
+}
+
+.row.has-gold .c-rank {
+  color: #f0cf7f;
+}
+
+.row.has-silver .c-rank {
+  color: #cdd6df;
+}
+
+.row.has-bronze .c-rank {
+  color: #cf9f76;
 }
 
 .row.is-top .c-rank {
@@ -785,6 +824,7 @@ button {
 }
 
 .tile {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -795,6 +835,19 @@ button {
   background: var(--jade-soft);
   box-shadow: inset 0 0 0 1px rgba(70, 177, 131, 0.26);
   transform-origin: 50% 0;
+}
+
+/* 题目解锁后，格子上补出的题号 */
+.tile-letter {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  font-family: var(--font-num);
+  font-size: 8.5px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--amber);
+  opacity: 0.9;
 }
 
 .tile-main {
@@ -972,6 +1025,24 @@ button {
   font-family: var(--font-num);
   font-size: 9.5px;
   line-height: 1;
+  color: var(--mist);
+}
+
+/* 提交数：比通过数更次要 */
+.pcard .s {
+  font-family: var(--font-num);
+  font-size: 8.5px;
+  line-height: 1;
+  color: #6b6154;
+  font-variant-numeric: tabular-nums;
+}
+
+.pcard .s::before {
+  content: '/ ';
+  opacity: 0.6;
+}
+
+.pcard.open .s {
   color: var(--mist);
 }
 

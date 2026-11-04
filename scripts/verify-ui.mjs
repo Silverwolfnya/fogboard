@@ -98,6 +98,17 @@ await seekRatio(8160 / 18000)
 const openAt131 = await page.locator('.pcard.open').count()
 console.log(`2:16 已点亮 ${openAt131} 题`)
 if (openAt131 !== 5) throw new Error(`2:16 应该有 5 题解锁，实际 ${openAt131}`)
+
+// 解锁后：榜上对应格子补出题号；题卡上通过/提交都能看到
+const letters = await page.locator('.tile-letter').count()
+const golds = await page.locator('.rank-medal.medal-gold').count()
+const foggy = await page.locator('.pcard.locked').count()
+const cardText = (await page.locator('.pcard.open').first().innerText()).replace(/\s+/g, ' ')
+console.log(`格子题号 ${letters} 个 · 金牌 ${golds} 人 · 雾卡 ${foggy} 张 · 卡片「${cardText}」`)
+if (letters < 100) throw new Error(`解锁后格子应该带题号，实际 ${letters}`)
+if (golds !== 33) throw new Error(`328 队按 10% 应该有 33 个金牌，实际 ${golds}`)
+if (foggy !== 8) throw new Error(`2:16 应该还有 8 张雾卡，实际 ${foggy}`)
+if (!/ \d+ \d+\+?/.test(cardText)) throw new Error(`题卡上应该同时有通过数与提交数：${cardText}`)
 await shot('04-t131m')
 
 // 点开一道已解锁的题看通过名单

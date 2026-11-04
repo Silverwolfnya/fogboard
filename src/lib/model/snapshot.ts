@@ -41,7 +41,37 @@ export function buildSnapshot(opts: SnapshotOptions): Snapshot {
   const dataT = revealed ? t : freezeActive && t > freezeSec ? freezeSec : t
   const tSelf = settings.selfSeesLive ? t : dataT
 
-  const problems: ProblemView[] = plan.problems.map((p) => {
+  // 虚拟队伍永远出现在榜上（哪怕口径是"仅正式队"，否则一勾自己就消失了）
+  const roster = settings.scope === 'official' ? index.officialTeams : index.fieldTeams
+  const teams = index.virtualTeams.length ? [...roster, ...index.virtualTeams] : roster
+
+  // 每题截至 dataT 的提交数：已通过题目的提交按 attempts 精确累加；
+  // 未通过题目的错误提交在导出文件里没有时刻，只在解封 / 终榜后计入（其余挂在 submittedPending 上）
+  const submitted = plan.problems.map((p) => {
+    let n = 0
+    for (const team of roster) {
+      const cell = team.cells[p.letter]
+      if (!cell) continue
+      if (cell.ac && cell.acceptSec != null) {
+        if (cell.acceptSec <= dataT) n += cell.attempts
+      } else if (!cell.ac && revealed) {
+        n += cell.attempts
+      }
+    }
+    return n
+  })
+
+  const submittedPending = plan.problems.map((p) => {
+    if (revealed) return 0
+    let n = 0
+    for (const team of roster) {
+      const cell = team.cells[p.letter]
+      if (cell && !cell.ac) n += cell.attempts
+    }
+    return n
+  })
+
+  const problems: ProblemView[] = plan.problems.map((p, i) => {
     const unlocked = settings.showFullInfo || p.unlockSec <= dataT
     const accepted = upperBound(p.acceptedSecs, dataT)
     const justUnlocked =
@@ -52,14 +82,22 @@ export function buildSnapshot(opts: SnapshotOptions): Snapshot {
       unlockSec: p.unlockSec,
       reason: p.reason,
       accepted,
+      submitted: submitted[i],
+      submittedPending: submittedPending[i],
       threshold: plan.threshold.threshold,
       justUnlocked,
     }
   })
 
-  // 虚拟队伍永远出现在榜上（哪怕口径是"仅正式队"，否则一勾自己就消失了）
-  const roster = settings.scope === 'official' ? index.officialTeams : index.fieldTeams
-  const teams = index.virtualTeams.length ? [...roster, ...index.virtualTeams] : roster
+  const unlockedLetter = new Set(problems.filter((p) => p.unlocked).map((p) => p.letter))
+
+  // 实时奖牌线：按名次百分比（累积）。并列名次一起给，所以实际人数可能略多于上限
+  const medalCuts = {
+    gold: Math.max(0, Math.round((roster.length * settings.medalGoldPct) / 100)),
+    silver: Math.max(0, Math.round((roster.length * settings.medalSilverPct) / 100)),
+    bronze: Math.max(0, Math.round((roster.length * settings.medalBronzePct) / 100)),
+  }
+
   const entries: (RankEntry & { row: RowView })[] = []
 
   for (const team of teams) {
@@ -92,6 +130,8 @@ export function buildSnapshot(opts: SnapshotOptions): Snapshot {
         acceptSec: s.acceptSec,
         firstBlood: s.firstBlood,
         recent: tTeam - s.acceptSec <= 60,
+        // 这道题解锁之后，榜上这格才补上题号
+        letter: unlockedLetter.has(s.letter) ? s.letter : undefined,
       }
     })
 
@@ -128,6 +168,7 @@ export function buildSnapshot(opts: SnapshotOptions): Snapshot {
       penaltySec,
       lastAcSec,
       isSelf,
+      medal: null,
       solves,
       cells,
     }
@@ -138,6 +179,13 @@ export function buildSnapshot(opts: SnapshotOptions): Snapshot {
   const ranks = assignRanks(sorted)
   const rows: RowView[] = sorted.map((entry, i) => {
     entry.row.rank = phase === 'before' ? 0 : ranks[i]
+    // 奖牌线是实时的：名次一变，档位跟着变；一题没过的没有奖牌
+    const rank = entry.row.rank
+    if (settings.medalEnabled && rank > 0 && entry.row.solved > 0) {
+      if (rank <= medalCuts.gold) entry.row.medal = 'gold'
+      else if (rank <= medalCuts.silver) entry.row.medal = 'silver'
+      else if (rank <= medalCuts.bronze) entry.row.medal = 'bronze'
+    }
     return entry.row
   })
 
@@ -164,6 +212,7 @@ export function buildSnapshot(opts: SnapshotOptions): Snapshot {
     teamCount: roster.length,
     problems,
     rows,
+    medals: medalCuts,
     stats: {
       totalAc,
       solvedTeams,

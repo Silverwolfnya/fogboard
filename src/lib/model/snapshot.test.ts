@@ -144,6 +144,67 @@ describe('快照：封榜与终榜', () => {
   })
 })
 
+describe('快照：题号、提交数与实时奖牌线', () => {
+  it('题目解锁后，主榜对应格子才补上题号', () => {
+    const before = snap(min(19)) // M 还没解锁
+    const after = snap(min(21)) // M 在 20:00 解锁
+    const mBefore = before.rows.flatMap((r) => r.solves).filter((s) => s.letter === 'M')
+    const mAfter = after.rows.flatMap((r) => r.solves).filter((s) => s.letter === 'M')
+    expect(mBefore).toHaveLength(0)
+    expect(mAfter.length).toBeGreaterThan(0)
+    // 同一道题在不同队伍的行里、不同的第 k 格上被补出来
+    const positions = after.rows
+      .map((r) => r.solves.findIndex((s) => s.letter === 'M'))
+      .filter((i) => i >= 0)
+    expect(new Set(positions).size).toBeGreaterThan(1)
+  })
+
+  it('没解锁的题在任何人行里都不带题号', () => {
+    const s = snap(min(21))
+    const locked = s.problems.filter((p) => !p.unlocked).map((p) => p.letter)
+    const leaked = s.rows.flatMap((r) => r.solves).filter((x) => x.letter && locked.includes(x.letter))
+    expect(leaked).toHaveLength(0)
+  })
+
+  it('每题都能拿到通过数与提交数，且提交数不小于通过数', () => {
+    const s = snap(min(60))
+    for (const p of s.problems) {
+      expect(p.accepted).toBeGreaterThanOrEqual(0)
+      expect(p.submitted).toBeGreaterThanOrEqual(p.accepted)
+    }
+  })
+
+  it('题目解锁前后都能读提交数（锁定的也有）', () => {
+    const s = snap(min(21))
+    const locked = s.problems.filter((p) => !p.unlocked)
+    expect(locked.length).toBeGreaterThan(0)
+    expect(locked.some((p) => p.submitted > 0)).toBe(true)
+    // 没时刻的错误提交单列出来，界面上显示成 "N+"
+    expect(locked.some((p) => p.submittedPending > 0)).toBe(true)
+  })
+
+  it('奖牌线按人数百分比实时算，铁牌不给', () => {
+    const settings: Settings = { ...DEFAULT_SETTINGS, selfTeamId: null }
+    const s = snap(min(300), settings)
+    expect(s.medals.gold).toBe(Math.round((s.teamCount * 10) / 100))
+    expect(s.medals.silver).toBe(Math.round((s.teamCount * 30) / 100))
+    expect(s.medals.bronze).toBe(Math.round((s.teamCount * 60) / 100))
+
+    const golds = s.rows.filter((r) => r.medal === 'gold')
+    expect(golds.length).toBeGreaterThan(0)
+    expect(golds.every((r) => r.rank <= s.medals.gold && r.solved > 0)).toBe(true)
+    // 一题没过的没有奖牌
+    expect(s.rows.filter((r) => r.solved === 0).every((r) => r.medal === null)).toBe(true)
+    // 名次越界的不给
+    expect(s.rows.filter((r) => r.rank > s.medals.bronze).every((r) => r.medal === null)).toBe(true)
+  })
+
+  it('关掉奖牌线后一个都不标', () => {
+    const s = snap(min(300), { ...DEFAULT_SETTINGS, medalEnabled: false })
+    expect(s.rows.every((r) => r.medal === null)).toBe(true)
+  })
+})
+
 describe('快照：我的队伍与口径', () => {
   const early = index.teams.find((t) => Object.values(t.cells).some((c) => c.ac && (c.acceptSec ?? 1e9) <= 600))!
 

@@ -62,6 +62,14 @@ export function SettingsDialog({
   onClose: () => void
 }) {
   const effective = useMemo(() => computeThreshold(teamCount, settings), [teamCount, settings])
+  const medalCuts = useMemo(
+    () => ({
+      gold: Math.max(0, Math.round((teamCount * settings.medalGoldPct) / 100)),
+      silver: Math.max(0, Math.round((teamCount * settings.medalSilverPct) / 100)),
+      bronze: Math.max(0, Math.round((teamCount * settings.medalBronzePct) / 100)),
+    }),
+    [teamCount, settings.medalGoldPct, settings.medalSilverPct, settings.medalBronzePct],
+  )
 
   return (
     <Modal
@@ -164,6 +172,40 @@ export function SettingsDialog({
           label=""
         />
       </div>
+
+      <div className="group-title">实时奖牌线</div>
+
+      <div className="setting-row">
+        <div className="setting-text">
+          <span className="setting-title">在名次前标金牌 / 银牌 / 铜牌</span>
+          <span className="setting-desc">
+            当前口径 {teamCount} 队：
+            <strong style={{ color: '#f0cf7f' }}> 金 {medalCuts.gold}</strong>
+            <strong style={{ color: '#cdd6df' }}> · 银 {medalCuts.silver}</strong>
+            <strong style={{ color: '#cf9f76' }}> · 铜 {medalCuts.bronze}</strong>
+            。名次实时变化，线也跟着走；一题没过的算铁牌，不标。
+          </span>
+        </div>
+        <Switch
+          checked={settings.medalEnabled}
+          onChange={(v) => onChange({ medalEnabled: v })}
+          label=""
+        />
+      </div>
+
+      {settings.medalEnabled ? (
+        <div className="setting-row">
+          <div className="setting-text">
+            <span className="setting-title">三档比例</span>
+            <span className="setting-desc">累积名次百分比：前 金% 是金，前 银% 是银（含金），前 铜% 是铜（含银）。</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <NumberInput value={settings.medalGoldPct} min={0} max={100} suffix="%" onChange={(v) => onChange({ medalGoldPct: v })} />
+            <NumberInput value={settings.medalSilverPct} min={0} max={100} suffix="%" onChange={(v) => onChange({ medalSilverPct: v })} />
+            <NumberInput value={settings.medalBronzePct} min={0} max={100} suffix="%" onChange={(v) => onChange({ medalBronzePct: v })} />
+          </div>
+        </div>
+      ) : null}
 
       <div className="group-title">封榜与时长</div>
 

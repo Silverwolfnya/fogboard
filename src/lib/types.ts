@@ -124,6 +124,14 @@ export interface Settings {
   /** 我的队伍：它的格子永远可见、结果实时更新 */
   selfTeamId: string | null
   selfSeesLive: boolean
+  /** 实时奖牌线：前三档按名次百分比（累积），铁牌不渲染 */
+  medalEnabled: boolean
+  /** 金牌线：前 N% 是金 */
+  medalGoldPct: number
+  /** 银牌线：前 N%（含金）是银 */
+  medalSilverPct: number
+  /** 铜牌线：前 N%（含银、金）是铜 */
+  medalBronzePct: number
   /** 调试：显示未解锁题目的解锁进度 */
   showLockedProgress: boolean
   /** 调试：无视解锁与封榜，显示完整信息 */
@@ -150,13 +158,18 @@ export interface CellView {
   lockedColumn?: boolean
 }
 
-/** 一次通过：主榜按时间顺序展示，不带题号 */
+/** 一次通过：主榜按时间顺序展示；题目解锁后才补上题号 */
 export interface SolveView {
   attempts: number
   acceptSec: number
   firstBlood?: boolean
   recent?: boolean
+  /** 这道题已经解锁时才给出（否则主榜不暴露题号） */
+  letter?: string
 }
+
+/** 奖牌档位 */
+export type Medal = 'gold' | 'silver' | 'bronze'
 
 export interface ProblemView {
   letter: string
@@ -166,6 +179,10 @@ export interface ProblemView {
   reason: 'threshold' | 'freeze' | 'never'
   /** 已通过队伍数（未解锁时 UI 默认不展示） */
   accepted: number
+  /** 截至目前已确认的提交数（未通过题目的错误提交没有时刻，解封后才计入） */
+  submitted: number
+  /** 还没法定位时刻的错误提交数（解封后并入 submitted 并清零） */
+  submittedPending: number
   threshold: number | null
   /** 刚刚解锁（3 分钟内）：用于题卡点亮的动效 */
   justUnlocked: boolean
@@ -179,8 +196,11 @@ export interface RowView {
   penaltySec: number
   lastAcSec: number
   isSelf: boolean
+  /** 实时奖牌档位：金银铜，铁牌为 null */
+  medal: Medal | null
   /**
-   * 主榜显示的"通过顺序"：按通过时刻升序，只有次数、提交数、时刻，没有题号。
+   * 主榜显示的"通过顺序"：按通过时刻升序，只有次数、提交数、时刻；
+   * 题目解锁之后才会补上题号。
    * 锁定的题目同样计入这里 —— 过题数/罚时/时刻都不含题目身份。
    */
   solves: SolveView[]
@@ -204,6 +224,8 @@ export interface Snapshot {
   teamCount: number
   problems: ProblemView[]
   rows: RowView[]
+  /** 实时奖牌线（按当前名次计算的档位人数） */
+  medals: { gold: number; silver: number; bronze: number }
   stats: {
     totalAc: number
     solvedTeams: number

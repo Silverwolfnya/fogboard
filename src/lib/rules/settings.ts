@@ -17,6 +17,11 @@ export const DEFAULT_SETTINGS: Settings = {
    * 打开后可以当作"自己的记事本"，但榜面会跟别人不一样。
    */
   selfSeesLive: false,
+  /** 实时奖牌线：金 10%、银 30%、铜 60%（累积名次百分比），铁牌不渲染 */
+  medalEnabled: true,
+  medalGoldPct: 10,
+  medalSilverPct: 30,
+  medalBronzePct: 60,
   showLockedProgress: false,
   showFullInfo: false,
 }
@@ -50,6 +55,10 @@ export function normalizeSettings(input: Partial<Settings> | null | undefined): 
     scope: raw.scope === 'official' ? 'official' : 'all',
     selfTeamId: typeof raw.selfTeamId === 'string' ? raw.selfTeamId : null,
     selfSeesLive: raw.selfSeesLive === true,
+    medalEnabled: raw.medalEnabled !== false,
+    medalGoldPct: clampInt(raw.medalGoldPct, 0, 100, 10),
+    medalSilverPct: clampInt(raw.medalSilverPct, 0, 100, 30),
+    medalBronzePct: clampInt(raw.medalBronzePct, 0, 100, 60),
     showLockedProgress: raw.showLockedProgress === true,
     showFullInfo: raw.showFullInfo === true,
   }
