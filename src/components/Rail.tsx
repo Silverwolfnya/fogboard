@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Contest, ManualTeam, Settings, Snapshot } from '../lib/types'
-import type { ContestIndex } from '../lib/model/contest'
+import { isMinutePrecision, sourceLabel, type ContestIndex } from '../lib/model/contest'
 import type { UnlockPlan } from '../lib/rules/unlock'
 import { manualCells, manualLetterStates } from '../lib/model/manual'
 import { aggregateTeam } from '../lib/model/aggregate'
@@ -36,7 +36,7 @@ export function Rail(props: RailProps) {
         snapshot={props.snapshot}
         index={props.index}
         settings={props.settings}
-        minutePrecision={props.contest.source !== 'xcpclink'}
+        minutePrecision={isMinutePrecision(props.contest.source)}
         onBack={() => props.onSelectProblem(null)}
         onSelectTeam={props.onSelectTeam}
       />
@@ -166,7 +166,7 @@ function OverviewPanel({
   onCreateTeam,
   onRemoveTeam,
 }: Omit<RailProps, 'selectedProblem'>) {
-  const minutePrecision = contest.source !== 'xcpclink'
+  const minutePrecision = isMinutePrecision(contest.source)
   const self = settings.selfTeamId ? snapshot.rows.find((r) => r.teamId === settings.selfTeamId) : null
   const threshold = plan.threshold
 
@@ -255,9 +255,7 @@ function OverviewPanel({
       <section className="rail-section">
         <div className="rail-head">
           <h2>全场</h2>
-          <span className="aside">
-            {contest.source === 'xcpcio' ? 'board.xcpio' : contest.source === 'xcpclink' ? 'xcpclink' : 'QOJ'}
-          </span>
+          <span className="aside">{sourceLabel(contest.source)}</span>
         </div>
         <dl className="stat-list">
           <div className="stat-row">

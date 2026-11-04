@@ -7,7 +7,8 @@ import { parseWorkbook, readWorkbookFile } from './lib/parse/workbook'
 import { parseXcpcio } from './lib/parse/xcpcio'
 import { parseXcpclink } from './lib/parse/xcpclink'
 import { dumpFromText, parseQojDump } from './lib/parse/qoj'
-import { buildIndex, createContest } from './lib/model/contest'
+import { parseXcpcioBoard } from './lib/parse/xcpcio-board'
+import { buildIndex, createContest, isMinutePrecision } from './lib/model/contest'
 import {
   MANUAL_TEAM_ID,
   addSubmission,
@@ -217,7 +218,7 @@ export default function App() {
       const sec = Math.floor(playback.t)
       const next = addSubmission(manualTeam, { letter, ac, sec }, letters)
       commitManual(next)
-      const minutePrecision = contest.source !== 'xcpclink'
+      const minutePrecision = isMinutePrecision(contest.source)
       const frozen = snapshot?.phase === 'frozen' && !snapshot.revealed
       const tail = frozen ? '（封榜中，解封后才上榜）' : ''
       if (ac) {
@@ -264,8 +265,38 @@ export default function App() {
     [applySheet],
   )
 
+  /** board.xcpcio 的合并 JSON（config + team + run） */
+  const loadXcpcioBoard = useCallback(
+    (text: string, fileName: string): string | null => {
+      try {
+        const raw = JSON.parse(text) as unknown
+        const parsed = parseXcpcioBoard(raw as never)
+        const next = createContest({
+          fileName,
+          sheetName: 'xcpcio',
+          source: 'xcpcio-board',
+          parsed,
+        })
+        setWorkbook(null)
+        setReport(null)
+        finishLoad(next, 'xcpcio')
+        return null
+      } catch (err) {
+        return err instanceof Error ? err.message : String(err)
+      }
+    },
+    [finishLoad],
+  )
+
   const loadFile = useCallback(
     async (file: File) => {
+      const lower = file.name.toLowerCase()
+      if (lower.endsWith('.json')) {
+        const text = await file.text()
+        const err = loadXcpcioBoard(text, file.name)
+        if (err) setToast(`读取失败：${err}`)
+        return
+      }
       try {
         const parsed = await readWorkbookFile(file)
         const rep = analyzeWorkbook(parsed)
@@ -280,7 +311,7 @@ export default function App() {
         setToast(`读取失败：${err instanceof Error ? err.message : String(err)}`)
       }
     },
-    [applySheet],
+    [applySheet, loadXcpcioBoard],
   )
 
   const loadSample = useCallback(
@@ -487,9 +518,13 @@ export default function App() {
               <div className="board-wrap">
                 <BoardTable
                   rows={visibleRows}
-                  slotCount={Math.max(15, snapshot.problems.length)}
+                  slotCount={Math.max(
+                    15,
+                    snapshot.problems.length,
+                    ...snapshot.rows.map((r) => r.entries.length),
+                  )}
                   problemCount={snapshot.problems.length}
-                  minutePrecision={contest!.source !== 'xcpclink'}
+                  minutePrecision={isMinutePrecision(contest!.source)}
                   onSelectTeam={setSelectedTeam}
                 />
               </div>
@@ -581,7 +616,7 @@ export default function App() {
         <TeamDrawer
           row={selectedRow}
           problems={snapshot.problems}
-          minutePrecision={contest?.source !== 'xcpclink'}
+          minutePrecision={isMinutePrecision(contest?.source ?? 'xcpcio')}
           onClose={() => setSelectedTeam(null)}
           onSetSelf={() => {
             patchSettings({ selfTeamId: selectedRow.teamId })

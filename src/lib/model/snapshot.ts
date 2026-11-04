@@ -1,4 +1,4 @@
-import type { CellView, Phase, ProblemView, RowView, Settings, Snapshot, SolveView } from '../types'
+import type { CellView, EntryView, Phase, ProblemView, RowView, Settings, Snapshot, SolveView } from '../types'
 import type { ContestIndex } from './contest'
 import type { UnlockPlan } from '../rules/unlock'
 import { assignRanks, sortRanked, type RankEntry } from './rank'
@@ -160,6 +160,50 @@ export function buildSnapshot(opts: SnapshotOptions): Snapshot {
       return columnUnlocked ? EMPTY_CELL : { kind: 'empty', attempts: 0, lockedColumn: true }
     })
 
+    // 主榜格子：一队一题一格，按"第一次交这道题的时刻"排序。
+    // 有逐条提交（board.xcpcio）时，未通过的 −n 会随错误次数长出来；
+    // 只有聚合数据（xlsx）时，未通过的题没有时刻，排到最后且要等解锁后才亮。
+    const rowEntries: EntryView[] = []
+    for (const cell of Object.values(team.cells)) {
+      const label = unlockedLetter.has(cell.letter) ? cell.letter : undefined
+      const submits = cell.submits
+
+      if (cell.ac && cell.acceptSec != null) {
+        if (cell.acceptSec > tTeam) continue
+        const upto = submits ? submits.filter((s) => s.sec <= tTeam) : null
+        rowEntries.push({
+          kind: 'ac',
+          attempts: upto ? Math.max(1, upto.length) : cell.attempts,
+          firstSec: submits ? submits[0].sec : cell.acceptSec,
+          sec: cell.acceptSec,
+          letter: label,
+          firstBlood: cell.firstBlood,
+          recent: tTeam - cell.acceptSec <= 60,
+        })
+        continue
+      }
+
+      if (cell.attempts <= 0) continue
+      if (submits) {
+        const wrong = submits.filter((s) => s.sec <= tTeam && !s.ac)
+        if (wrong.length === 0) continue
+        rowEntries.push({
+          kind: 'fail',
+          attempts: wrong.length,
+          firstSec: wrong[0].sec,
+          sec: wrong[wrong.length - 1].sec,
+          letter: label,
+        })
+      } else if (unlockedLetter.has(cell.letter) || isSelf) {
+        // 没有时刻：只能等这题解锁（或自己）才给出来
+        rowEntries.push({ kind: 'fail', attempts: cell.attempts, firstSec: Infinity, letter: label })
+      }
+    }
+    const sortKey = (e: EntryView) => (Number.isFinite(e.firstSec) ? e.firstSec : Number.MAX_SAFE_INTEGER)
+    rowEntries.sort(
+      (a, b) => sortKey(a) - sortKey(b) || (a.sec ?? 0) - (b.sec ?? 0) || (a.letter ?? '').localeCompare(b.letter ?? ''),
+    )
+
     const row: RowView = {
       teamId: team.id,
       team,
@@ -170,6 +214,7 @@ export function buildSnapshot(opts: SnapshotOptions): Snapshot {
       isSelf,
       medal: null,
       solves,
+      entries: rowEntries,
       cells,
     }
     entries.push({ id: team.id, solved, penaltySec, lastAcSec, row })

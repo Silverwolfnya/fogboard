@@ -15,13 +15,14 @@ pnpm dev          # http://127.0.0.1:5173/
 打开后点「成都站 / 秦皇岛站」的示例即可看到效果，也可以直接把 xlsx 拖进页面。
 
 ```bash
-pnpm test         # 108 个单测：解析 / 罚时 / 排名 / 解锁 / 快照 / 格式化 / QOJ / 回放时钟 / 虚拟队伍
+pnpm test         # 115 个单测：解析 / 罚时 / 排名 / 解锁 / 快照 / 格式化 / QOJ / 回放时钟 / 虚拟队伍
 pnpm build        # 产出 dist/，可直接静态托管
 pnpm build:single # 产出 dist-single/FogBoard.html —— 单文件版，双击就能用
 pnpm preview      # 预览构建结果
 pnpm typecheck    # tsc --noEmit
 node scripts/verify-ui.mjs          # 用本机 Chrome 跑一遍交互并截图
 node scripts/verify-team.mjs        # 虚拟队伍：建队 / 记录 / 撤销 / 不影响解锁
+node scripts/verify-xcpcio.mjs      # board.xcpcio 数据导入（真实重庆站数据）
 node scripts/verify-single.mjs      # 用 file:// 打开单文件版，确认内置榜单能加载
 node scripts/verify-background.mjs  # 真的把页面冻住，确认回放时钟会追平
 ```
@@ -94,6 +95,33 @@ node scripts/verify-background.mjs  # 真的把页面冻住，确认回放时钟
 ## 支持的数据格式
 
 两种导出都自动识别，包括表头不在第一行、一个文件里有多张工作表的情况（正式 / 打星 / 省赛 / 女队等）。
+
+### board.xcpcio（带逐条提交）
+
+`board.xcpcio.com/<赛事路径>` 的页面是 SPA，真正的数据在三个 JSON 里：
+
+```
+https://board.xcpcio.com/data/<赛事路径>/{config,team,run}.json
+```
+
+- `config.json`：比赛名、起止时间、罚时、封榜时长、题目
+- `team.json`：队伍、学校、正式 / 打星、队员教练
+- `run.json`：**逐条提交** `{team_id, problem_id, timestamp, status}` —— 时间精确到秒
+
+这三个接口**没有开 CORS**，浏览器里直接 fetch 会被挡，所以用一个脚本下载并合并：
+
+```bash
+node scripts/fetch-xcpcio.mjs "https://board.xcpcio.com/ccpc/11th/chongqing?group=official"
+# → fixtures/xcpcio-chongqing.json（约 500 KB）
+```
+
+把生成的 JSON 拖进页面即可。它的好处是**能还原真实的提交队列**：
+
+- 主榜每一格 = 这队的一道题，按**第一次交这道题的时刻**排序（不是通过时刻）
+- 通过的格子显示 `+k` 与通过时刻；没通过的题也占一格，显示 `−n` 和最后一次提交时刻，并且**随时间长出来**
+- 时刻到秒，所以主榜是 `h:mm:ss`
+
+重庆站实测：324 队（正式 260）、13 题、4026 条提交，其中 1419 条 CORRECT 折算成 1351 道通过题（同一题重复 AC 只算一次）。
 
 ### board.xcpio 导出
 

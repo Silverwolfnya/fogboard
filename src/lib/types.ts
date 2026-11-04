@@ -1,5 +1,12 @@
 /** 输入榜单的来源格式 */
-export type SourceFormat = 'xcpcio' | 'xcpclink' | 'qoj'
+export type SourceFormat = 'xcpcio' | 'xcpclink' | 'qoj' | 'xcpcio-board'
+
+/** 一条提交（只有 board.xcpcio 的 run.json 有） */
+export interface SubmitRecord {
+  /** 赛时秒数 */
+  sec: number
+  ac: boolean
+}
 
 /** 一支队伍在某道题上的最终结果（来自导出文件的聚合信息，没有提交时刻流） */
 export interface CellResult {
@@ -16,6 +23,8 @@ export interface CellResult {
   acceptSec?: number
   /** 是否首杀（仅 xcpclink 提供） */
   firstBlood?: boolean
+  /** 逐条提交（只有 board.xcpcio 有）：用来按首次提交排序、让 −n 随时间长出来 */
+  submits?: SubmitRecord[]
 }
 
 export interface TeamMarkers {
@@ -168,6 +177,24 @@ export interface SolveView {
   letter?: string
 }
 
+/**
+ * 主榜上的一格 = 一支队伍的一道题。
+ * 通过：+k 与通过时刻；没通过：−n（有逐条提交时，n 随提交次数增长）。
+ */
+export interface EntryView {
+  kind: 'ac' | 'fail'
+  /** 提交总次数（fail 时是错误提交次数） */
+  attempts: number
+  /** 首次提交时刻，用于排序；没有时刻的（xlsx 的未通过题）为 Infinity */
+  firstSec: number
+  /** ac：通过时刻；fail：最后一次错误提交的时刻（可能没有） */
+  sec?: number
+  /** 这道题已解锁时才给题号 */
+  letter?: string
+  firstBlood?: boolean
+  recent?: boolean
+}
+
 /** 奖牌档位 */
 export type Medal = 'gold' | 'silver' | 'bronze'
 
@@ -204,6 +231,11 @@ export interface RowView {
    * 锁定的题目同样计入这里 —— 过题数/罚时/时刻都不含题目身份。
    */
   solves: SolveView[]
+  /**
+   * 主榜显示用的格子：一队一题一格，按"这队第一次交这道题的时刻"排序。
+   * 有逐条提交时，未通过的题会随错误次数长出来；没有时刻的排在最后。
+   */
+  entries: EntryView[]
   /** 与题目列一一对应（仅队伍抽屉用，受解锁状态约束） */
   cells: CellView[]
 }

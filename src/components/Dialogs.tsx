@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import type { Contest, ManualTeam, ProblemView, RowView, Settings, SheetAnalysis } from '../lib/types'
 import type { WorkbookReport } from '../lib/parse/detect'
 import { computeThreshold } from '../lib/rules/unlock'
+import { sourceLabel } from '../lib/model/contest'
 import { QOJ_SNIPPET } from '../lib/parse/qoj'
 import { formatAcceptTime, formatClock, formatPenalty, formatPenaltyFull } from '../lib/format'
 import { cx, Icon, Modal, Switch } from './ui'
@@ -412,13 +413,19 @@ export function ImportDialog({
         }}
       >
         <Icon name="upload" />
-        <span className="dz-title">拖入 xlsx，或点击选择文件</span>
-        <span className="dz-sub">支持 board.xcpio 与 xcpclink 导出的榜单</span>
+        <span className="dz-title">拖入 xlsx / JSON，或点击选择文件</span>
+        <span className="dz-sub">支持 board.xcpio、xcpclink 的 xlsx，以及 board.xcpcio 的合并 JSON</span>
       </div>
+      <p className="field-help">
+        board.xcpcio 的榜单带<b>逐条提交</b>（时间精确到秒、没通过的题也占一格）。它没有开 CORS，
+        页面里直接拉会被浏览器挡住，先用
+        <code className="code-inline">node scripts/fetch-xcpcio.mjs &lt;榜单链接&gt;</code>
+        生成 JSON，再把那个文件拖进来。
+      </p>
       <input
         ref={inputRef}
         type="file"
-        accept=".xlsx,.xlsm,.xls"
+        accept=".xlsx,.xlsm,.xls,.json"
         hidden
         onChange={(e) => {
           const file = e.target.files?.[0]
@@ -605,7 +612,7 @@ export function DiagnosticsDialog({
         <div className="stat-row">
           <dt>来源</dt>
           <dd style={{ fontSize: 12 }}>
-            {contest.source === 'xcpcio' ? 'board.xcpio' : contest.source === 'xcpclink' ? 'xcpclink' : 'QOJ'} ·{' '}
+            {sourceLabel(contest.source)} ·{' '}
             {contest.sheetName}
           </dd>
         </div>

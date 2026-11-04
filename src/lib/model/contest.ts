@@ -3,6 +3,25 @@ import type { ParsedSheet } from '../parse/xcpcio'
 import { info, warning } from '../parse/shared'
 import { aggregateTeam } from './aggregate'
 
+/** 这个数据源的时刻精度只到分钟（xlsx 导出）还是到秒（xcpclink / QOJ / board.xcpcio） */
+export function isMinutePrecision(source: SourceFormat): boolean {
+  return source === 'xcpcio' || source === 'qoj'
+}
+
+/** 来源的展示名 */
+export function sourceLabel(source: SourceFormat): string {
+  switch (source) {
+    case 'xcpcio':
+      return 'board.xcpio'
+    case 'xcpclink':
+      return 'xcpclink'
+    case 'qoj':
+      return 'QOJ'
+    default:
+      return 'board.xcpcio'
+  }
+}
+
 export interface CreateContestInput {
   fileName: string
   sheetName: string

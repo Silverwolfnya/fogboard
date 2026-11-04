@@ -850,6 +850,30 @@ button {
   opacity: 0.9;
 }
 
+/* 没通过的题：−n，比通过格淡一档 */
+.pcell.is-fail {
+  background-image: none;
+}
+
+.tile-fail {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  margin: 3px 3px;
+  border-radius: 2px;
+  background: rgba(232, 224, 208, 0.035);
+  box-shadow: inset 0 0 0 1px rgba(232, 224, 208, 0.08);
+  font-family: var(--font-num);
+  font-size: 12px;
+  color: #8b8072;
+}
+
+.tile-fail .tile-letter {
+  color: #8b8072;
+}
+
 .tile-main {
   font-family: var(--font-num);
   font-size: 12.5px;
@@ -1779,6 +1803,17 @@ button {
   color: var(--amber);
   border-bottom: 1px solid rgba(242, 163, 60, 0.35);
   padding-bottom: 1px;
+}
+
+.code-inline {
+  display: inline-block;
+  margin: 0 4px;
+  padding: 1px 5px;
+  border-radius: 2px;
+  background: rgba(232, 224, 208, 0.07);
+  font-family: var(--font-num);
+  font-size: 10.5px;
+  color: var(--text);
 }
 
 .qoj-link:hover {
